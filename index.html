@@ -1,0 +1,123 @@
+<!DOCTYPE html>
+<html>
+    <head>
+        <title>Cursor Party</title>
+        <script src="/socket.io/socket.io.js"></script>
+        <script src="http://code.jquery.com/jquery.js"/></script>
+
+        <script>
+            $(document).ready(function () {
+                var socket = io.connect('/'),
+                    cursor = (function (socket) {
+                        var x, y;
+                        function update (x, y) {
+                            x = x;
+                            y = y;
+                        }
+                        function emit (x, y) {
+                            socket.emit('mousemove' ,{
+                                x: x,
+                                y: y
+                            })
+                        }
+
+                        return {
+                            update: update,
+                            emit:   emit,
+                            get:    function () {
+                                return {
+                                    x: x,
+                                    y: y
+                                }
+                            }
+                        }
+                    })(socket),
+                        state = {},
+                        buffer = {},
+                        think = function (state) {
+                            state.cursors = [];
+                            for (var i in buffer.cursors) {
+                                state.cursors.push(buffer.cursors[i]);
+                            }
+                            draw(state);
+                        },
+                        draw = function (state) {
+                            var i;
+                            if (state.cursors.length) {
+                                ctx.fillStyle = 'black';
+                                ctx.fillRect(0,0,400,300);
+                                ctx.fillStyle = 'white';
+                                for (i = 0; i<state.cursors.length; i++) {
+                                
+                                    ctx.drawImage(cursor_sprite, state.cursors[i].x, state.cursors[i].y);
+                                }
+                            }
+                                
+                        },
+                        ctx = document.getElementById('the_canvas').getContext("2d"),
+                        cursor_sprite = new Image();
+
+                cursor_sprite.src='cursor.png';
+
+                window.think = think;
+                window.state = state;
+                window.draw  = draw;
+
+                ctx.fillStyle = 'black';
+                ctx.fillRect(0,0,400,300);
+
+                $('#the_canvas').mousemove(function (ev) {
+                    var x, y;
+                    y = (ev.offsetY || ev.pageY - $(ev.target).offset().top);
+                    x = (ev.offsetX || ev.pageX - $(ev.target).offset().left);
+                    cursor.emit(x, y);
+                });
+
+                socket.on('update', function (data) {
+                    var count = 0;
+                    buffer.cursors = {};
+                    for (var i in data.cursors) {
+                        buffer.cursors[i] = data.cursors[i];
+                        count++;
+                    }
+                });
+
+                // shim layer with setTimeout fallback
+                window.requestAnimFrame = (function(){
+                  return  window.requestAnimationFrame       || 
+                          window.webkitRequestAnimationFrame || 
+                          window.mozRequestAnimationFrame    || 
+                          window.oRequestAnimationFrame      || 
+                          window.msRequestAnimationFrame     || 
+                          function( callback ){
+                            window.setTimeout(callback, 1000 / 60);
+                          };
+                })();
+
+                (function go() {
+                    requestAnimFrame(go);
+                    think(state);
+                })(); 
+ 
+            });
+        </script>
+        <style>
+            body {
+                margin: 0;
+                background: navy;
+                padding: 50px;
+                position: relative;
+            }
+
+            .canvas-middle {
+                margin: 0 auto;
+                border: 1px solid white;
+                display: block;
+            }
+        </style>
+    </head>
+
+    <body>
+        <canvas id="the_canvas" class="canvas-middle"  width="400" height="300"/> 
+    </body>
+</html>
